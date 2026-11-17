@@ -263,12 +263,43 @@ def about():
     st.markdown("**Pipeline:** price data → historical-mean expected returns → Ledoit-Wolf covariance → "
                 "maximum-Sharpe optimization (5–40% bounds) → 7% cash reserve → current-vs-target drift check → "
                 "simulated trade list → SQLite audit log.")
-    st.markdown("**Reused Phase 3 modules:** `config.py`, `data_feed.py`, `optimizer.py`, `portfolio_state.py`. "
-                "`dashboard_logic.py` is the interface adapter.")
+
+    st.subheader("Modules (most to least important)")
+    st.markdown("""
+| # | Module | Purpose | Key functionality |
+|---|---|---|---|
+| 1 | `optimizer.py` | Decide what the portfolio *should* hold. | `compute_target_weights`: max-Sharpe optimization on historical-mean returns and a Ledoit-Wolf covariance, bounded 5–40% per name. `apply_cash_buffer`: scales weights down and adds the 7% cash line. |
+| 2 | `rebalance_engine.py` | Run one complete rebalance cycle. | `run_rebalance_cycle`: fetch prices → targets → compare with holdings → trade only if drift exceeds the threshold → submit (dry-run by default) → write an audit row to SQLite. |
+| 3 | `portfolio_state.py` | Compare what you hold with what you should hold. | Current weights, drift per position, the rebalance trigger, and `build_trade_list`: buy/sell quantities with assumed slippage, skipping dust trades under $50. |
+| 4 | `config.py` | Keep every setting in one place. | Tickers, weight bounds, drift threshold, cash buffer, costs, risk-free rate, paper/live flag and the ML on/off switch. Keys come from environment variables. |
+| 5 | `data_feed.py` | Supply clean market data. | `get_price_history` and `get_latest_prices` via Yahoo Finance; rejects missing tickers, excessive gaps and warns on stale data. Supports "as of" dates for historical tests. |
+| 6 | `broker_alpaca.py` | Talk to the brokerage (CLI only). | Reads positions and cash; submits marketable limit orders to an Alpaca **paper** account, or only logs them in dry-run. The dashboard never imports it. |
+| 7 | `backtest.py` | Test the strategy on history. | `run_backtest`: day-by-day simulation with drift-triggered trades, costs, and cash earning the risk-free rate, versus an equal-weight benchmark. `compare_strategies` adds the experimental ML variant. Powers Backtest Replay. |
+| 8 | `dashboard.py`, `dashboard_logic.py` | Let a person explore the system safely. | This Streamlit app: enter holdings, see targets, drift and simulated orders, replay a backtest, review saved runs. The adapter supplies synthetic offline prices and saves runs to SQLite. |
+| 9 | `main.py` | Give the engine a command line. | `check` (one dry-run cycle), `backtest` (optionally `--compare-ml`) and `schedule` (start the scheduler). |
+| 10 | `scheduler.py` | Run the cycle automatically. | Calendar or drift-based schedule using APScheduler; currently dry-run only, and a failed cycle places no trades. |
+| 11 | `forecaster.py`, `features.py` | Test whether machine learning can beat the baseline. | Ridge / LightGBM return forecaster with walk-forward evaluation, information coefficient and hit rate; `features.py` builds its inputs (volatility, momentum, drawdown, beta). Experimental, and it failed the pre-registered gate. |
+| 12 | `robustness_check.py` | Check results aren't a lucky window. | Runs the strategy comparison across six historical end dates and reports how often each approach wins. |
+| 13 | `tests/` | Prove the code does what we claim. | 21 offline tests (no network, keys or broker): unit, integration and a stubbed full-cycle system test, including a regression test for the audit-log bug. |
+""")
     st.markdown("**ML status:** Ridge and LightGBM are experimental and intentionally NOT used for the main "
                 "recommendation because the Phase 3 validation gate did not pass.")
-    st.markdown("**Safety:** this dashboard does not import `broker_alpaca.py`, submit orders, or access brokerage "
-                "accounts. Offline data is synthetic. Simulated quantities may be fractional and the order list is "
+
+    st.subheader("Security")
+    st.markdown("""
+- **Simulation-only dashboard:** it never imports `broker_alpaca.py`, submits orders or accesses brokerage accounts (a test checks this).
+- **Safe broker defaults:** the command-line engine is dry-run by default and targets an Alpaca **paper** account (`ALPACA_PAPER`).
+- **Secrets stay out of code:** API keys come from environment variables; `.env` is git-ignored; the dashboard needs no keys.
+- **Audit trail:** every engine cycle is logged to SQLite with timestamp, targets, current weights, drift and trades.
+- **Fails closed:** it refuses to trade on a missing or invalid price rather than trading blind.
+- **Validated inputs:** holdings that total over 100% are rejected; weights are bounded to 5–40%.
+- **Tested:** 21 offline tests, including a regression test for the audit-log serialization bug.
+""")
+    st.caption("This is a student project. These are good engineering practices, not a claim of enterprise "
+               "certification or regulatory compliance.")
+
+    st.subheader("Limitations")
+    st.markdown("Offline data is synthetic. Simulated position quantities may be fractional and the order list is "
                 "an estimate, not an executable trading plan.")
 
 
