@@ -70,3 +70,12 @@ class FakeClient:
     def submit_order(self, req):
         self.orders.append(req)
         return FakeOrder()
+
+
+def pytest_runtest_setup(item):
+    """Demo mode only: print each test's plain-English What/Why before it runs."""
+    if DEMO and item.function.__doc__:
+        import inspect
+        print()   # start on a fresh line after pytest's test-name prefix
+        for line in inspect.cleandoc(item.function.__doc__).splitlines():
+            print(f"      {line}")

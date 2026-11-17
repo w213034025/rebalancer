@@ -30,6 +30,9 @@ def _rows(db):
 
 
 def test_full_cycle_dry_run_submits_nothing(monkeypatch, tmp_db):
+    """What: Runs the whole engine on fake prices and a fake broker, starting from 100% cash, in dry-run mode.
+    Why: The most important safety property: the system can decide to trade, build orders and log everything while sending zero orders to the broker.
+    """
     client = FakeClient(cash=10_000.0)               # 100% cash -> big drift -> trades
     _stub_world(monkeypatch, client)
     out = eng.run_rebalance_cycle(dry_run=True)
@@ -47,6 +50,9 @@ def test_full_cycle_dry_run_submits_nothing(monkeypatch, tmp_db):
 
 
 def test_full_cycle_live_path_logs_uuid_order_ids(monkeypatch, tmp_db):
+    """What: Runs the full cycle in live mode against a fake broker whose order ids are UUID objects, like Alpaca's.
+    Why: Regression test for a real bug: real Alpaca ids crashed the audit log. This proves they now save as text.
+    """
     client = FakeClient(cash=10_000.0)
     _stub_world(monkeypatch, client)
     out = eng.run_rebalance_cycle(dry_run=False)      # stub client, so still no real order
@@ -58,6 +64,9 @@ def test_full_cycle_live_path_logs_uuid_order_ids(monkeypatch, tmp_db):
 
 
 def test_no_trade_when_already_on_target(monkeypatch, tmp_db):
+    """What: Starts the account exactly at the engine's own target weights and runs another cycle.
+    Why: The engine should do nothing when nothing needs doing. Unneeded trades cost money and are a sign the drift rule is broken.
+    """
     client = FakeClient(cash=10_000.0)
     _stub_world(monkeypatch, client)
     first = eng.run_rebalance_cycle(dry_run=True)
@@ -72,6 +81,9 @@ def test_no_trade_when_already_on_target(monkeypatch, tmp_db):
 
 
 def test_dashboard_smoke(tmp_db):
+    """What: Loads the Streamlit dashboard without a browser, clicks Calculate, and visits each remaining page.
+    Why: A broken page is the easiest thing to ship by accident. This catches crashes on every screen in seconds.
+    """
     pytest.importorskip("streamlit")
     from streamlit.testing.v1 import AppTest
     import os
@@ -87,6 +99,9 @@ def test_dashboard_smoke(tmp_db):
 
 
 def test_replay_page_steps_forward(tmp_db):
+    """What: Drives the Backtest Replay page: Next week, switch to Month, Next month, then Reset, checking the date cursor each time.
+    Why: Confirms the controls do what the buttons say: a week is 5 trading days, a month is 21, and Reset returns to the start.
+    """
     pytest.importorskip("streamlit")
     from streamlit.testing.v1 import AppTest
     import os
