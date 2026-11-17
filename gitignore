@@ -1,0 +1,23 @@
+# Secrets - never commit
+.env
+
+# Virtual environments
+.venv/
+venv/
+
+# Local data and logs (SQLite audit log, saved dashboard runs)
+logs/
+*.sqlite3
+
+# Python and test caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS / editor junk
+.DS_Store
+.idea/
+.vscode/
+
+# Optional exact-version lock file (generate locally if wanted)
+# requirements.lock
